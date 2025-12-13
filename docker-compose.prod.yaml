@@ -1,0 +1,20 @@
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: wa-redis-prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+
+  backend:
+    image: "wa-backend:1.0"
+    container_name: wa-backend-prod
+    env_file: .env.prod
+    ports:  
+      - 8100:80
+    environment:
+      - REDIS_HOST=wa-redis-prod
+
+volumes:
+  redis_data_prod:

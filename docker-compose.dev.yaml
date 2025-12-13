@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: wa-redis-dev
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_data_dev:/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: wa-backend:lastest
+    container_name: wa-backend-dev
+    env_file: .env.dev
+    ports:
+      - "8000:80"
+    volumes:
+      # Mount only app directory for hot reload, not .venv
+      - ./backend/app:/project/app
+      # Mount config files as read-only
+      - ./backend/pyproject.toml:/project/pyproject.toml:ro
+      - ./backend/uv.lock:/project/uv.lock:ro
+    environment:
+      - REDIS_HOST=wa-redis-dev
+    command: [".venv/bin/uvicorn", "app.main:app", "--port", "80", "--host", "0.0.0.0", "--reload"]
+
+volumes:
+  redis_data_dev:
