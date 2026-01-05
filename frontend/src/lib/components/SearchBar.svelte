@@ -6,7 +6,11 @@
 		StreamingOptionsByService
 	} from '$lib/types';
 	// updates watchlist state in parent component
-	let { watchlist = $bindable([]) }: { watchlist: MovieItemWithLoadingState[] } = $props();
+	// updates usernames for intersection of multiple users watchlists
+	let {
+		watchlist = $bindable([]),
+		usernames = $bindable([])
+	}: { watchlist: MovieItemWithLoadingState[]; usernames: string[] } = $props();
 	// bound to search input
 	let usernameQuery: string = $state('');
 	// holds state of querying watchlist, used for loading info
@@ -18,10 +22,64 @@
 	// abort controller to cancel previous requests
 	let currentAbortController: AbortController | null = null;
 
+	async function getWatchlistGivenUsername(
+		username: string,
+		signal: AbortSignal
+	): Promise<MovieItemWithLoadingState[]> {
+
+		username = username.trim();
+		const watchlistResponse = await fetch(
+			`/api/watchlist?username=${encodeURIComponent(username)}`,
+			{ signal }
+		);
+		if (!watchlistResponse.ok) {
+			const errorData = await watchlistResponse.json().catch(() => ({}));
+
+			switch (watchlistResponse.status) {
+				case 404:
+					throw new Error(`${username}: Watchlist not found. Check the username.`);
+				case 422:
+					throw new Error(errorData.detail || `${username}: Invalid username format`);
+				case 424:
+					throw new Error('Could not reach Letterboxd. Try again later.');
+				default:
+					throw new Error(errorData.detail || `${username}: An unexpected error occurred`);
+			}
+		}
+		let movieItems: LetterboxdMovieItem[] = await watchlistResponse.json();
+		let userWatchlist = movieItems.map(
+			(movie: LetterboxdMovieItem) =>
+				({
+					...movie,
+					users: [username],
+					streaming_options: {},
+					loadingState: 'idle',
+					stateMessage: ''
+				}) as MovieItemWithLoadingState
+		);
+		return userWatchlist;
+	}
+
+	function mergeUserWatchlists(
+		watchlists: MovieItemWithLoadingState[][]
+	): MovieItemWithLoadingState[] {
+		let mergedMap: Map<string, MovieItemWithLoadingState> = new Map();
+		watchlists.flat(1).forEach((movie) => {
+			let original = mergedMap.get(movie.movie_id);
+			if (!(original === undefined)) {
+				original.users.push(...movie.users);
+			} else {
+				mergedMap.set(movie.movie_id, movie);
+			}
+		});
+		return new Array(...mergedMap.values());
+	}
+
 	async function onsubmit() {
 		loadingWatchlist = true;
 		errorMessage = '';
-		let username = usernameQuery; // .split(',')[0];
+		// sets bindable usernames variable
+		usernames = usernameQuery.split(',');
 
 		if (currentAbortController) {
 			currentAbortController.abort();
@@ -30,54 +88,20 @@
 		// give every request the same signal
 		const signal = currentAbortController.signal;
 
-		// TODO: Add support for multiple users.
-		// Query letterboxd watchlist api for each user.
-		// Problem is: We need to load streaming options for both watchlists
-		// Little Hack: Put username into result from backend, makes data handling easier here?
-		// We could keep all movies in one list though with one attribute being the user
-		// Just figure out how to filter out duplicates and an ugly intersect
-
-		// Option one:
-		//  Set username on every streaming option, bloaty but not accidentally removable
-		// Option Two:
-		//  New model: user and watchlist.
-		//   If intersect, intersect both options
-		//   If union, display set of all options
-		try {
-			const watchlistResponse = await fetch(
-				`/api/watchlist?username=${encodeURIComponent(username)}`,
-				{ signal }
-			);
-			if (!watchlistResponse.ok) {
-				const errorData = await watchlistResponse.json().catch(() => ({}));
-
-				switch (watchlistResponse.status) {
-					case 404:
-						throw new Error('Watchlist not found. Check the username.');
-					case 422:
-						throw new Error(errorData.detail || 'Invalid username format');
-					case 424:
-						throw new Error('Could not reach Letterboxd. Try again later.');
-					default:
-						throw new Error(errorData.detail || 'An unexpected error occurred');
-				}
+		const userWatchlistsPromises = usernames.map(async (username: string) => {
+			try {
+				const userWatchlist = await getWatchlistGivenUsername(username, signal);
+				return userWatchlist;
+			} catch (err: any) {
+				errorMessage = err.message;
+				return [];
 			}
-			let movieItems: LetterboxdMovieItem[] = await watchlistResponse.json();
-			watchlist = movieItems.map(
-				(movie: LetterboxdMovieItem) =>
-					({
-						...movie,
-						streaming_options: {},
-						loadingState: 'idle',
-						stateMessage: "",
-					}) as MovieItemWithLoadingState
-			);
-		} catch (err: any) {
-			errorMessage = err.message;
-			watchlist = []
-		} finally {
-			loadingWatchlist = false;
-		}
+		});
+		const userWatchlists = await Promise.all(userWatchlistsPromises);
+		loadingWatchlist = false;
+
+		watchlist = mergeUserWatchlists(userWatchlists);
+
 		try {
 			watchlist = watchlist.map(
 				(movie: MovieItemWithLoadingState) =>
@@ -106,7 +130,6 @@
 						}
 					}
 
-
 					const options = response.ok ? await response.json() : {};
 
 					const updatedMovie: MovieItemWithLoadingState = {
@@ -121,7 +144,7 @@
 					if (error.name === 'AbortError') {
 						return;
 					}
-					// TODO: Maybe add error message here?
+
 					const updatedMovie: MovieItemWithLoadingState = {
 						...movie,
 						streaming_options: {},
@@ -143,7 +166,7 @@
 			bind:value={usernameQuery}
 			disabled={loadingWatchlist}
 			name="query"
-			placeholder="Username"
+			placeholder="User1, User2"
 			required
 			class="mr-4 w-full rounded-lg border border-gray-300 bg-gray-50 p-4 ps-10 text-lg text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-500 dark:focus:ring-blue-500"
 		/>

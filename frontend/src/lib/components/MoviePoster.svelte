@@ -85,7 +85,7 @@
 					movie.movie_name
 				)} flex items-center justify-center rounded-lg border-4 border-transparent hover:border-blue-700"
 			>
-				<p class="text-center text-xl leading-tight text-wrap font-bold text-white">
+				<p class="text-center text-xl leading-tight font-bold text-wrap text-white">
 					{movie.movie_name}
 				</p>
 			</div>
@@ -108,7 +108,7 @@
 			<!-- TODO: Add error message for movie, eg. api limit exceeded -->
 		{:else if movie.loadingState === 'error'}
 			<div class="absolute top-0 right-0 rounded bg-red-500 p-2 text-xs text-white">
-				{movie.stateMessage || "Loading Error"}
+				{movie.stateMessage || 'Loading Error'}
 			</div>
 		{:else if Object.keys(movie.streaming_options).length === 0 && movie.loadingState == 'success'}
 			<div class="absolute top-0 right-0 rounded bg-gray-500 p-2 text-xs text-white">

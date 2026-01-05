@@ -219,6 +219,7 @@ export interface MOTNMovieSearchResults {
 
 /**
  * Movie item from Letterboxd watchlist
+ * The users field stores which user's watchlist this entry belongs to
  * The streaming_options field is populated after fetching from MovieOfTheNight API
  */
 export interface LetterboxdMovieItem {
@@ -226,6 +227,7 @@ export interface LetterboxdMovieItem {
 	readonly movie_name: string;
 	readonly movie_slug: string;
 	readonly movie_url: string;
+	users: string[];
 	streaming_options: StreamingOptionsByService;
 }
 
