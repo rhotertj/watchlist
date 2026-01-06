@@ -80,19 +80,21 @@
 	<div class="flex w-full flex-col gap-4 px-4 md:w-auto md:flex-row md:items-center">
 		<!-- Selection of filters -->
 		<SubscriptionSelect bind:multiSelected={selectedServices} />
-		<Toggle class="pr-2 pl-4 dark:text-gray-400" bind:checked={displaySubscriptionOnly}
-			>Subscriptions only</Toggle
-		>
-		<Toggle class="pl2 pr-4 dark:text-gray-400" bind:checked={intersectWatchlists}
-			>Intersect watchlists</Toggle
-		>
+		<div class="flex flex-row">
+			<Toggle class="px-4 dark:text-gray-400" bind:checked={displaySubscriptionOnly}
+				>Subscriptions only</Toggle
+			>
+			<Toggle class="px-2 dark:text-gray-400" bind:checked={intersectWatchlists}
+				>Intersect watchlists</Toggle
+			>
+		</div>
 	</div>
 	<div class="result-container flex w-3/4 flex-row flex-wrap justify-center py-3">
 		<!-- Grid (actually flex) of movie posters with streaming option ribbons -->
 		{#each stableOrderedWatchlist as movie (movie.movie_id)}
-			<div animate:flip={{ duration: 800 }} in:fade={{ duration: 1200 }}>
+			<span in:fade={{ duration: 1600 }} animate:flip={{ duration: 800 }} >
 				<MoviePoster {movie} {selectedServices} {displaySubscriptionOnly} />
-			</div>
+			</span>
 		{/each}
 	</div>
 </div>
